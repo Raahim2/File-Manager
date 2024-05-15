@@ -2,14 +2,11 @@
 
 File Manager is a simple command-line tool designed to manage files and directories efficiently. It provides various functionalities to manipulate files and directories such as creating, deleting, moving, and listing files and directories.
 
-## Demo Video
+# Demo 
 
-You can watch a demo of File Manager in action:
-
-<video controls>
-  <source src="path/to/your/video.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+![Screenshot 1](https://github.com/Raahim2/ImageAI/blob/main/static/Demo%20Video/Demo1.png)
+![Screenshot 2](https://github.com/Raahim2/ImageAI/blob/main/static/Demo%20Video/Demo2.png)
+![Screenshot 3](https://github.com/Raahim2/ImageAI/blob/main/static/Demo%20Video/Demo3.png)
 
 
 ## Features
