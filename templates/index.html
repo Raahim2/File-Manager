@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>File manager</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+ .uploder{
+   margin: auto;
+   margin-top: 30vh;
+   margin-right: 20%;
+ }
+
+.box1{
+   width: 16rem;
+}
+.box2{
+   width: 5vw;
+   display: flex;
+   justify-content: center;
+   flex-wrap: wrap;
+   gap: 10px;
+   text-align: center;
+
+}
+.box3{
+   width: 56vw
+}
+.box4{
+   width: 21vw;
+}
+.place{
+width: 100%;
+height: 56px;
+}
+
+.main{
+   display: flex;
+   height: calc(100vh - 58px);
+   width: calc(100vw);
+}
+.outputs{
+   width: 100%;
+   height: 40%;
+   color: black;
+}
+li{
+   text-decoration: none;
+}
+.items{
+   background-color: #f3f4f6;
+   width: 40px;
+   height: 40px;
+   padding: 5px;
+   display: flex;
+   justify-content: center;
+   align-items: center;
+   border-radius: 10px;
+   margin: 10px;
+}
+.text{
+   font-weight: 700;
+   font-size: 10px;
+}
+.floating_div{
+   display: flex;
+   justify-content: center;
+   align-items: center;
+   width: 600px;
+   height: 500px;
+   background-color: #d1daeb;
+   border-radius:20px ;
+}
+.cdiv{
+   height: 100vh;
+   width: 100vw;
+   display: flex;
+   justify-content: center;
+   align-items: center;
+}
+.blur{
+   filter: blur(5px);
+}
+
+
+
+
+</style>
+
+</head>
+<body>
+
+<div id="floating_div" class="cdiv hidden fixed inset-0 flex justify-center items-center">
+   <div class=" mx-auto floating_div border relative">
+       <div class="absolute top-0 right-0 mt-2 mr-2">
+           <div onclick="back()" class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 cursor-pointer">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" color="#000000" fill="none">
+               <path d="M19.0005 4.99988L5.00045 18.9999M5.00045 4.99988L19.0005 18.9999" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+           </svg>
+           </div>
+       </div>
+       <div class="mb-5" id="floating_form">
+      </div>
+       
+   </div>
+</div>
+   
+<div id="web" class="">
+   <nav class="fixed top-0 z-50 w-full bg-white border-b border-gray-200 dark:bg-gray-800 dark:border-gray-700">
+      <div class="px-3 py-3 lg:px-5 lg:pl-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center justify-start rtl:justify-end">
+              <img src="https://flowbite.com/docs/images/logo.svg" class="h-8 me-3" alt="FlowBite Logo" />
+              <span class="self-center text-xl font-semibold sm:text-2xl whitespace-nowrap dark:text-white">File manager</span>
+          </div>
+   
+          <div class="items-center justify-between hidden w-full md:flex md:w-auto md:order-1" id="navbar-sticky">
+            <ul class="flex flex-col p-4 md:p-0 mt-4 font-medium border border-gray-100 rounded-lg bg-gray-50 md:space-x-8 rtl:space-x-reverse md:flex-row md:mt-0 md:border-0 md:bg-white dark:bg-gray-800 md:dark:bg-gray-900 dark:border-gray-700">
+              <li>
+                <a href="/" class="block py-2 px-3 text-white bg-blue-700 rounded md:bg-transparent md:text-blue-700 md:p-0 md:dark:text-blue-500" aria-current="page">Home</a>
+              </li>
+              <li>
+                <a href="/uploader" class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:dark:hover:text-blue-500 dark:text-white dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent dark:border-gray-700">Uploder</a>
+              </li>
+              <li>
+                <a href="#" class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:dark:hover:text-blue-500 dark:text-white dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent dark:border-gray-700">Services</a>
+              </li>
+              <li>
+                <a href="#" class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:dark:hover:text-blue-500 dark:text-white dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent dark:border-gray-700">Contact</a>
+              </li>
+            </ul>
+          </div>
+        
+      </div>
+    </nav>
+
+    <div class="place"> 
+
+    </div>
+
+    <aside id="logo-sidebar" class=" fixed top-0 left-0 z-40 w-64 h-screen pt-20 transition-transform -translate-x-full bg-white border-r border-gray-200 sm:translate-x-0 dark:bg-gray-800 dark:border-gray-700" aria-label="Sidebar">
+       <div class="h-full  px-3 pb-4 overflow-y-auto bg-white dark:bg-gray-800">
+          <ul class="space-y-2 font-medium">
+             <li onclick="show('codefiles')">
+                <a href="#" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+                   <svg class="w-5 h-5 text-gray-500 transition duration-75 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 22 21">
+                      <path d="M16.975 11H10V4.025a1 1 0 0 0-1.066-.998 8.5 8.5 0 1 0 9.039 9.039.999.999 0 0 0-1-1.066h.002Z"/>
+                      <path d="M12.5 0c-.157 0-.311.01-.565.027A1 1 0 0 0 11 1.02V10h8.975a1 1 0 0 0 1-.935c.013-.188.028-.374.028-.565A8.51 8.51 0 0 0 12.5 0Z"/>
+                   </svg>
+                   <span class="ms-3">Code</span>
+                </a>
+                <div class="hidden" id="codefiles" >       
+                  <ul class="space-y-4 text-left text-gray-500 dark:text-gray-400">
+                     {% for file_name in context.codefiles %}
+                     <li class="flex items-center space-x-3 rtl:space-x-reverse mx-8 my-2" onclick="displayPDF('{{file_name}}')">
+                        <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                           <path d="M5 5V.13a2.96 2.96 0 0 0-1.293.749L.879 3.707A2.96 2.96 0 0 0 .13 5H5Z"/>
+                           <path d="M6.737 11.061a2.961 2.961 0 0 1 .81-1.515l6.117-6.116A4.839 4.839 0 0 1 16 2.141V2a1.97 1.97 0 0 0-1.933-2H7v5a2 2 0 0 1-2 2H0v11a1.969 1.969 0 0 0 1.933 2h12.134A1.97 1.97 0 0 0 16 18v-3.093l-1.546 1.546c-.413.413-.94.695-1.513.81l-3.4.679a2.947 2.947 0 0 1-1.85-.227 2.96 2.96 0 0 1-1.635-3.257l.681-3.397Z"/>
+                           <path d="M8.961 16a.93.93 0 0 0 .189-.019l3.4-.679a.961.961 0 0 0 .49-.263l6.118-6.117a2.884 2.884 0 0 0-4.079-4.078l-6.117 6.117a.96.96 0 0 0-.263.491l-.679 3.4A.961.961 0 0 0 8.961 16Zm7.477-9.8a.958.958 0 0 1 .68-.281.961.961 0 0 1 .682 1.644l-.315.315-1.36-1.36.313-.318Zm-5.911 5.911 4.236-4.236 1.359 1.359-4.236 4.237-1.7.339.341-1.699Z"/>
+                        </svg>
+                        <span>{{file_name}}</span>
+                     </li>
+                     {% endfor %}
+                  </ul>
+                </div>
+             </li>
+             <li onclick="show('textfiles')">
+                <a href="#" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+                   <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
+                      <path d="M14 2a3.963 3.963 0 0 0-1.4.267 6.439 6.439 0 0 1-1.331 6.638A4 4 0 1 0 14 2Zm1 9h-1.264A6.957 6.957 0 0 1 15 15v2a2.97 2.97 0 0 1-.184 1H19a1 1 0 0 0 1-1v-1a5.006 5.006 0 0 0-5-5ZM6.5 9a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9ZM8 10H5a5.006 5.006 0 0 0-5 5v2a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-2a5.006 5.006 0 0 0-5-5Z"/>
+                   </svg>
+                   <span class="flex-1 ms-3 whitespace-nowrap">Text Document</span>
+                </a>
+                <div class="hidden" id="textfiles">
+                  <ul class="space-y-4 text-left text-gray-500 dark:text-gray-400">
+                     {% for file_name in context.textfiles %} 
+               
+                     <li class="flex items-center space-x-3 rtl:space-x-reverse mx-8 my-2" onclick="displayPDF('{{file_name}}')" >
+
+                        <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                           <path d="M5 5V.13a2.96 2.96 0 0 0-1.293.749L.879 3.707A2.96 2.96 0 0 0 .13 5H5Z"/>
+                           <path d="M6.737 11.061a2.961 2.961 0 0 1 .81-1.515l6.117-6.116A4.839 4.839 0 0 1 16 2.141V2a1.97 1.97 0 0 0-1.933-2H7v5a2 2 0 0 1-2 2H0v11a1.969 1.969 0 0 0 1.933 2h12.134A1.97 1.97 0 0 0 16 18v-3.093l-1.546 1.546c-.413.413-.94.695-1.513.81l-3.4.679a2.947 2.947 0 0 1-1.85-.227 2.96 2.96 0 0 1-1.635-3.257l.681-3.397Z"/>
+                           <path d="M8.961 16a.93.93 0 0 0 .189-.019l3.4-.679a.961.961 0 0 0 .49-.263l6.118-6.117a2.884 2.884 0 0 0-4.079-4.078l-6.117 6.117a.96.96 0 0 0-.263.491l-.679 3.4A.961.961 0 0 0 8.961 16Zm7.477-9.8a.958.958 0 0 1 .68-.281.961.961 0 0 1 .682 1.644l-.315.315-1.36-1.36.313-.318Zm-5.911 5.911 4.236-4.236 1.359 1.359-4.236 4.237-1.7.339.341-1.699Z"/>
+                        </svg>
+                        <span>{{file_name}}</span>
+                     </li>
+                     {% endfor %}
+                  </ul>
+                </div>
+             </li>
+             <li onclick="show('excelfiles')">
+                <a href="#" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+                   <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 18 20">
+                      <path d="M17 5.923A1 1 0 0 0 16 5h-3V4a4 4 0 1 0-8 0v1H2a1 1 0 0 0-1 .923L.086 17.846A2 2 0 0 0 2.08 20h13.84a2 2 0 0 0 1.994-2.153L17 5.923ZM7 9a1 1 0 0 1-2 0V7h2v2Zm0-5a2 2 0 1 1 4 0v1H7V4Zm6 5a1 1 0 1 1-2 0V7h2v2Z"/>
+                   </svg>
+                   <span class="flex-1 ms-3 whitespace-nowrap">Excel Document</span>
+                </a>
+                <div class="hidden" id="excelfiles">
+                  <ul class="space-y-4 text-left text-gray-500 dark:text-gray-400">
+                     {% for file_name in context.excelfiles %}
+                     <li class="flex items-center space-x-3 rtl:space-x-reverse mx-8 my-2" onclick="displayPDF('{{file_name}}')">
+                        <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                           <path d="M5 5V.13a2.96 2.96 0 0 0-1.293.749L.879 3.707A2.96 2.96 0 0 0 .13 5H5Z"/>
+                           <path d="M6.737 11.061a2.961 2.961 0 0 1 .81-1.515l6.117-6.116A4.839 4.839 0 0 1 16 2.141V2a1.97 1.97 0 0 0-1.933-2H7v5a2 2 0 0 1-2 2H0v11a1.969 1.969 0 0 0 1.933 2h12.134A1.97 1.97 0 0 0 16 18v-3.093l-1.546 1.546c-.413.413-.94.695-1.513.81l-3.4.679a2.947 2.947 0 0 1-1.85-.227 2.96 2.96 0 0 1-1.635-3.257l.681-3.397Z"/>
+                           <path d="M8.961 16a.93.93 0 0 0 .189-.019l3.4-.679a.961.961 0 0 0 .49-.263l6.118-6.117a2.884 2.884 0 0 0-4.079-4.078l-6.117 6.117a.96.96 0 0 0-.263.491l-.679 3.4A.961.961 0 0 0 8.961 16Zm7.477-9.8a.958.958 0 0 1 .68-.281.961.961 0 0 1 .682 1.644l-.315.315-1.36-1.36.313-.318Zm-5.911 5.911 4.236-4.236 1.359 1.359-4.236 4.237-1.7.339.341-1.699Z"/>
+                        </svg>
+                        <span>{{file_name}}</span>
+                     </li>
+                     {% endfor %}
+                  </ul>
+                </div>
+             </li>
+             <li onclick="show('dwgfiles')">
+                <a href="#" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+                   <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 18 16">
+                      <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1 8h11m0 0L8 4m4 4-4 4m4-11h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-3"/>
+                   </svg>
+                   <span class="flex-1 ms-3 whitespace-nowrap">Drawings</span>
+                </a>
+                <div class="hidden" id="dwgfiles">
+                  <ul class="space-y-4 text-left text-gray-500 dark:text-gray-400">
+                     {% for file_name in context.dwgfiles %}
+                     <li class="flex items-center space-x-3 rtl:space-x-reverse mx-8 my-2" onclick="displayPDF('{{file_name}}')">
+                        <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                           <path d="M5 5V.13a2.96 2.96 0 0 0-1.293.749L.879 3.707A2.96 2.96 0 0 0 .13 5H5Z"/>
+                           <path d="M6.737 11.061a2.961 2.961 0 0 1 .81-1.515l6.117-6.116A4.839 4.839 0 0 1 16 2.141V2a1.97 1.97 0 0 0-1.933-2H7v5a2 2 0 0 1-2 2H0v11a1.969 1.969 0 0 0 1.933 2h12.134A1.97 1.97 0 0 0 16 18v-3.093l-1.546 1.546c-.413.413-.94.695-1.513.81l-3.4.679a2.947 2.947 0 0 1-1.85-.227 2.96 2.96 0 0 1-1.635-3.257l.681-3.397Z"/>
+                           <path d="M8.961 16a.93.93 0 0 0 .189-.019l3.4-.679a.961.961 0 0 0 .49-.263l6.118-6.117a2.884 2.884 0 0 0-4.079-4.078l-6.117 6.117a.96.96 0 0 0-.263.491l-.679 3.4A.961.961 0 0 0 8.961 16Zm7.477-9.8a.958.958 0 0 1 .68-.281.961.961 0 0 1 .682 1.644l-.315.315-1.36-1.36.313-.318Zm-5.911 5.911 4.236-4.236 1.359 1.359-4.236 4.237-1.7.339.341-1.699Z"/>
+                        </svg>
+                        <span>{{file_name}}</span>
+                     </li>
+                     {% endfor %}
+                  </ul>
+                </div>
+             </li>
+          </ul>
+       </div>
+    </aside>
+   
+    <div class="main">
+      <div class="h-full box1"></div>
+
+      <div class="box2 border">
+         <div onclick="show_folating_div('gettext')">
+            <div class="items">
+               <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 19">
+                  <path d="M14.5 0A3.987 3.987 0 0 0 11 2.1a4.977 4.977 0 0 1 3.9 5.858A3.989 3.989 0 0 0 14.5 0ZM9 13h2a4 4 0 0 1 4 4v2H5v-2a4 4 0 0 1 4-4Z"/>
+                  <path d="M5 19h10v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2ZM5 7a5.008 5.008 0 0 1 4-4.9 3.988 3.988 0 1 0-3.9 5.859A4.974 4.974 0 0 1 5 7Zm5 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm5-1h-.424a5.016 5.016 0 0 1-1.942 2.232A6.007 6.007 0 0 1 17 17h2a1 1 0 0 0 1-1v-2a5.006 5.006 0 0 0-5-5ZM5.424 9H5a5.006 5.006 0 0 0-5 5v2a1 1 0 0 0 1 1h2a6.007 6.007 0 0 1 4.366-5.768A5.016 5.016 0 0 1 5.424 9Z"/>
+               </svg>
+            </div>  
+            <p class="text">Extract Text</p>
+         </div> 
+         <div onclick="show_folating_div('lock')">
+            <div class="items">
+               <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 19">
+                  <path d="M14.5 0A3.987 3.987 0 0 0 11 2.1a4.977 4.977 0 0 1 3.9 5.858A3.989 3.989 0 0 0 14.5 0ZM9 13h2a4 4 0 0 1 4 4v2H5v-2a4 4 0 0 1 4-4Z"/>
+                  <path d="M5 19h10v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2ZM5 7a5.008 5.008 0 0 1 4-4.9 3.988 3.988 0 1 0-3.9 5.859A4.974 4.974 0 0 1 5 7Zm5 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm5-1h-.424a5.016 5.016 0 0 1-1.942 2.232A6.007 6.007 0 0 1 17 17h2a1 1 0 0 0 1-1v-2a5.006 5.006 0 0 0-5-5ZM5.424 9H5a5.006 5.006 0 0 0-5 5v2a1 1 0 0 0 1 1h2a6.007 6.007 0 0 1 4.366-5.768A5.016 5.016 0 0 1 5.424 9Z"/>
+               </svg>
+            </div>  
+            <p class="text">Lock File</p>
+         </div> 
+         <div onclick="show_folating_div('getimgs')">
+            <div class="items">
+               <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 19">
+                  <path d="M14.5 0A3.987 3.987 0 0 0 11 2.1a4.977 4.977 0 0 1 3.9 5.858A3.989 3.989 0 0 0 14.5 0ZM9 13h2a4 4 0 0 1 4 4v2H5v-2a4 4 0 0 1 4-4Z"/>
+                  <path d="M5 19h10v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2ZM5 7a5.008 5.008 0 0 1 4-4.9 3.988 3.988 0 1 0-3.9 5.859A4.974 4.974 0 0 1 5 7Zm5 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm5-1h-.424a5.016 5.016 0 0 1-1.942 2.232A6.007 6.007 0 0 1 17 17h2a1 1 0 0 0 1-1v-2a5.006 5.006 0 0 0-5-5ZM5.424 9H5a5.006 5.006 0 0 0-5 5v2a1 1 0 0 0 1 1h2a6.007 6.007 0 0 1 4.366-5.768A5.016 5.016 0 0 1 5.424 9Z"/>
+               </svg>
+            </div>  
+            <p class="text">Extract Images</p>
+         </div> 
+         <div onclick="show_folating_div('mergepdf')">
+            <div class="items">
+               <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 19">
+                  <path d="M14.5 0A3.987 3.987 0 0 0 11 2.1a4.977 4.977 0 0 1 3.9 5.858A3.989 3.989 0 0 0 14.5 0ZM9 13h2a4 4 0 0 1 4 4v2H5v-2a4 4 0 0 1 4-4Z"/>
+                  <path d="M5 19h10v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2ZM5 7a5.008 5.008 0 0 1 4-4.9 3.988 3.988 0 1 0-3.9 5.859A4.974 4.974 0 0 1 5 7Zm5 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm5-1h-.424a5.016 5.016 0 0 1-1.942 2.232A6.007 6.007 0 0 1 17 17h2a1 1 0 0 0 1-1v-2a5.006 5.006 0 0 0-5-5ZM5.424 9H5a5.006 5.006 0 0 0-5 5v2a1 1 0 0 0 1 1h2a6.007 6.007 0 0 1 4.366-5.768A5.016 5.016 0 0 1 5.424 9Z"/>
+               </svg>
+            </div>  
+            <p class="text">Merge PDF</p>
+         </div> 
+         
+         <div>
+            <div class="items">
+               <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 19">
+                  <path d="M14.5 0A3.987 3.987 0 0 0 11 2.1a4.977 4.977 0 0 1 3.9 5.858A3.989 3.989 0 0 0 14.5 0ZM9 13h2a4 4 0 0 1 4 4v2H5v-2a4 4 0 0 1 4-4Z"/>
+                  <path d="M5 19h10v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2ZM5 7a5.008 5.008 0 0 1 4-4.9 3.988 3.988 0 1 0-3.9 5.859A4.974 4.974 0 0 1 5 7Zm5 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm5-1h-.424a5.016 5.016 0 0 1-1.942 2.232A6.007 6.007 0 0 1 17 17h2a1 1 0 0 0 1-1v-2a5.006 5.006 0 0 0-5-5ZM5.424 9H5a5.006 5.006 0 0 0-5 5v2a1 1 0 0 0 1 1h2a6.007 6.007 0 0 1 4.366-5.768A5.016 5.016 0 0 1 5.424 9Z"/>
+               </svg>
+            </div>  
+            <p class="text">Extract Text</p>
+         </div> 
+      </div>
+
+      <div class="box3 border flex justify-center items-center" id="displaydiv">
+      
+      
+      <embed src="{{ url_for('serve_pdf', filename='pd1.pdf') }}" width="100%" height="100%" id="embedtag" class="" />
+      
+
+      <img src="{{ url_for('serve_pdf', filename='b1.jpeg') }}" width="100%" height="100%" id="imgtag"  class="hidden"/>
+      
+   
+      </div>
+
+      <div class="box4 border  ">
+         <div class="border outputs overflow-y-auto">
+         
+            <ul class="space-y-2 font-medium py-4">
+               <li >
+                  <a href="#" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+                     <svg class="w-5 h-5 text-gray-500 transition duration-75 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 22 21">
+                        <path d="M16.975 11H10V4.025a1 1 0 0 0-1.066-.998 8.5 8.5 0 1 0 9.039 9.039.999.999 0 0 0-1-1.066h.002Z"/>
+                        <path d="M12.5 0c-.157 0-.311.01-.565.027A1 1 0 0 0 11 1.02V10h8.975a1 1 0 0 0 1-.935c.013-.188.028-.374.028-.565A8.51 8.51 0 0 0 12.5 0Z"/>
+                     </svg>
+                     <span class="ms-3">Output</span>
+                  </a>
+                  <div >       
+                    <ul class="space-y-4 text-left text-gray-500 dark:text-gray-400">
+                       {% for file_name in context.output %}
+                       <li class="flex items-center space-x-3 rtl:space-x-reverse mx-8 my-2" onclick="displayPDF('{{file_name}}')">
+                          <svg class="flex-shrink-0 w-5 h-5 text-gray-500 transition duration-75 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                             <path d="M5 5V.13a2.96 2.96 0 0 0-1.293.749L.879 3.707A2.96 2.96 0 0 0 .13 5H5Z"/>
+                             <path d="M6.737 11.061a2.961 2.961 0 0 1 .81-1.515l6.117-6.116A4.839 4.839 0 0 1 16 2.141V2a1.97 1.97 0 0 0-1.933-2H7v5a2 2 0 0 1-2 2H0v11a1.969 1.969 0 0 0 1.933 2h12.134A1.97 1.97 0 0 0 16 18v-3.093l-1.546 1.546c-.413.413-.94.695-1.513.81l-3.4.679a2.947 2.947 0 0 1-1.85-.227 2.96 2.96 0 0 1-1.635-3.257l.681-3.397Z"/>
+                             <path d="M8.961 16a.93.93 0 0 0 .189-.019l3.4-.679a.961.961 0 0 0 .49-.263l6.118-6.117a2.884 2.884 0 0 0-4.079-4.078l-6.117 6.117a.96.96 0 0 0-.263.491l-.679 3.4A.961.961 0 0 0 8.961 16Zm7.477-9.8a.958.958 0 0 1 .68-.281.961.961 0 0 1 .682 1.644l-.315.315-1.36-1.36.313-.318Zm-5.911 5.911 4.236-4.236 1.359 1.359-4.236 4.237-1.7.339.341-1.699Z"/>
+                          </svg>
+                          <span>{{file_name}}</span>
+                       </li>
+                       {% endfor %}
+                    </ul>
+                  </div>
+               </li>
+               
+            </ul>
+         </div>
+         <div>
+            
+
+         <div class="relative overflow-x-auto">
+            <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
+               <tbody>
+                  <thead class="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400">
+                     <th scope="col" class="px-6 py-3 rounded-s-lg">
+                        Keys
+                  </th>
+                  <th scope="col" class="px-6 py-3">
+                        Value
+                  </th>
+                  </thead>
+
+                  <tbody>
+         
+
+                     {% for key, value in info.items() %}
+                     <tr class="bg-white dark:bg-gray-800">
+                        <td class="font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ key }}</td>
+                        <td class="">{{ value }}</td>
+                     </tr>
+                     {% endfor %} 
+                     
+
+
+         
+               </tbody>
+            </table>
+         </div>
+
+         </div>
+      </div> 
+
+      
+   </div>
+
+   <div class="hidden">
+      <form action="/process" method="post" id="pdfform">
+         <input type="text" name="pdf" id="pdf">
+         <input type="text" name="task" id="task">
+         <input type="text" name="setname" id="setname" >
+         <input type="text" name="password" id="password" >
+
+      </form>
+   </div>
+</div>
+
+</body>
+<script>
+let currentfile="pd1.pdf";
+let currenttask = 'none'
+
+
+function show(id){
+   let file_div = document.getElementById(id)
+   if (file_div.classList.contains('hidden')) {
+      file_div.classList.remove('hidden')
+    } else {
+      file_div.classList.add('hidden')
+    }
+}
+
+function displayPDF(filename) {
+   
+   var embedtag = document.getElementById('embedtag')
+   var imgtag = document.getElementById('imgtag')
+
+   console.log(filename)
+   ext = filename.split('.').pop();
+   if(ext=="png" || ext=="jpg" || ext =="jpeg"){
+      embedtag.classList.add('hidden')
+      imgtag.classList.remove('hidden')
+      imgtag.src= "{{ url_for('serve_pdf', filename='') }}" + filename;
+   }
+   else{
+      embedtag.classList.remove('hidden')
+      imgtag.classList.add('hidden')
+      embedtag.src = "{{ url_for('serve_pdf', filename='') }}" + filename;
+   }
+   currentfile = filename
+   // reloadPage()
+}
+
+function back(){
+   document.getElementById('floating_div').classList.add('hidden')
+}
+
+
+function show_folating_div(task){
+  let floating_form = document.getElementById('floating_form')
+
+  let web = document.getElementById('web')
+  let askfile = document.getElementById('floating_div');
+  askfile.classList.remove('hidden');
+
+  currenttask = task;
+
+  if(currenttask=="lock"){
+   let formcontent = `
+            <label for="base-input" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Enter file name</label>
+            <input type="text" id="filename" name="filename" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+            <label for="base-input" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Enter Password</label>
+            <input type="text" id="setpassword" name="setpassword" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+            <button type="button" onclick="submitform(document.getElementById('filename').value , document.getElementById('setpassword').value)" class="my-4 text-white bg-gradient-to-r from-cyan-400 via-cyan-500 to-cyan-600 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-cyan-300 dark:focus:ring-cyan-800 shadow-lg shadow-cyan-500/50 dark:shadow-lg dark:shadow-cyan-800/80 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2">Submit</button>
+        `;
+   floating_form.innerHTML = formcontent 
+  }
+
+  else if(currenttask=="gettext" || currenttask == "getimgs" ){
+   let formcontent = `
+           <label for="base-input" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Enter file name</label>
+           <input type="text" id="filename" name="filename" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+           <button type="button" onclick="submitform(document.getElementById('filename').value , 'NONE')" class="my-4 text-white bg-gradient-to-r from-cyan-400 via-cyan-500 to-cyan-600 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-cyan-300 dark:focus:ring-cyan-800 shadow-lg shadow-cyan-500/50 dark:shadow-lg dark:shadow-cyan-800/80 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2">Submit</button>
+        `;
+   floating_form.innerHTML = formcontent 
+  }
+
+else if(currenttask=="mergepdf") {
+  
+  floating_form.innerHTML = ` 
+    <label for="base-input" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Enter mergedfile name</label>
+    <input type="text" id="filename" name="filename" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+    <div>
+      <label for="base-input" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Select Pdf</label>
+      <ul id="fileList" class="my-2 w-48 max-h-32 bg-gray-50 overflow-y-auto text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+        {% for file in context.textfiles if file.endswith(".pdf") %}
+        <li class="w-full border-b border-gray-200 rounded-t-lg dark:border-gray-600">
+          <div class="flex items-center ps-3">
+            <input type="checkbox" value="{{file}}" class="file-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-700 dark:focus:ring-offset-gray-700 focus:ring-2 dark:bg-gray-600 dark:border-gray-500">
+            <label for="vue-checkbox" class="w-full py-3 ms-2 text-sm font-medium text-gray-900 dark:text-gray-300">{{file}}</label>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      <input type="text" id="checkedBoxesInput" name="checkedBoxes" class="rounded-md" readonly>
+    </div>
+    <button type="button" onclick="submitform(document.getElementById('filename').value , document.getElementById('checkedBoxesInput').value)" class="my-4 text-white bg-gradient-to-r from-cyan-400 via-cyan-500 to-cyan-600 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-cyan-300 dark:focus:ring-cyan-800 shadow-lg shadow-cyan-500/50 dark:shadow-lg dark:shadow-cyan-800/80 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2">Submit</button>
+  `;
+
+  const checkboxes = document.querySelectorAll('.file-checkbox');
+  const checkedBoxesInput = document.getElementById('checkedBoxesInput');
+
+  checkboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', updateCheckedBoxes);
+  });
+
+  function updateCheckedBoxes() {
+    const checkedBoxes = Array.from(checkboxes)
+      .filter(checkbox => checkbox.checked)
+      .map(checkbox => checkbox.value);
+    checkedBoxesInput.value = checkedBoxes.join(', ');
+  }
+
+}
+}
+
+
+function reloadPage() {
+            window.location.reload();
+        }
+
+
+
+function submitform(newfile , password){
+
+   let form = document.getElementById('pdfform')
+   let pdfInput = document.getElementById('pdf');
+   let taskInput = document.getElementById('task');
+   let setname = document.getElementById('setname');
+   let pass = document.getElementById('password');
+
+
+
+   
+   pdfInput.value = currentfile;
+   taskInput.value = currenttask;
+   setname.value = newfile;
+   pass.value = password
+
+   form.submit()
+}
+
+
+
+
+
+
+</script>
+</html>
