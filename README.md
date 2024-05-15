@@ -4,9 +4,9 @@ File Manager is a simple command-line tool designed to manage files and director
 
 # Demo 
 
-![Screenshot 1](https://github.com/Raahim2/ImageAI/blob/main/static/Demo%20Video/Demo1.png)
-![Screenshot 2](https://github.com/Raahim2/ImageAI/blob/main/static/Demo%20Video/Demo2.png)
-![Screenshot 3](https://github.com/Raahim2/ImageAI/blob/main/static/Demo%20Video/Demo3.png)
+![Screenshot 1](https://github.com/Raahim2/File-Manager/blob/main/DEMO/demo1.png)
+![Screenshot 2](https://github.com/Raahim2/File-Manager/blob/main/DEMO/demo2.png)
+![Screenshot 3](https://github.com/Raahim2/File-Manager/blob/main/DEMO/demo3.png)
 
 
 ## Features
