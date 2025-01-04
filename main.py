@@ -31,7 +31,7 @@ def main():
         currentfile = "uploads/text/pd1.pdf" 
 
     # info = pdf.get_pdf_info(currentfile)
-    info = {"Title": "Example Title", "Author": "Example Author", "Producer": "PDF Producer", ...}
+    info = {"Title": "Example Title", "Author": "Example Author", "Producer": "PDF Producer"}
 
     return render_template('index.html' , context = context   ,info=info )
     # return render_template('index.html' , context = context  )
@@ -126,7 +126,7 @@ def process():
         currentfile = path 
 
         # info = pdf.get_pdf_info(currentfile)
-        info = {"Title": "Example Title", "Author": "Example Author", "Producer": "PDF Producer", ...}
+        info = {"Title": "Example Title", "Author": "Example Author", "Producer": "PDF Producer"}
         
         if(task =="gettext"):
             text = pdf.get_text_from_pdf(path)
