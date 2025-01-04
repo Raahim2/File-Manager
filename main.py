@@ -1,6 +1,6 @@
 from flask import Flask , render_template , request , send_from_directory
 import os
-import functions as pdf
+# import functions as pdf
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads' 
