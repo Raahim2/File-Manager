@@ -30,7 +30,8 @@ def main():
     except NameError:
         currentfile = "uploads/text/pd1.pdf" 
 
-    info = pdf.get_pdf_info(currentfile)
+    # info = pdf.get_pdf_info(currentfile)
+    info = "Info"
 
 
     return render_template('index.html' , context = context   ,info=info )
@@ -125,7 +126,8 @@ def process():
         global currentfile
         currentfile = path 
 
-        info = pdf.get_pdf_info(currentfile)
+        # info = pdf.get_pdf_info(currentfile)
+        info="Info"
         
         if(task =="gettext"):
             text = pdf.get_text_from_pdf(path)
