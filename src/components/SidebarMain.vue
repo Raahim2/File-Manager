@@ -18,11 +18,7 @@
         @change="onFileChosen"
       />
 
-      <button @click="setPanel('select')" :class="getToolButtonClass('select')" title="Select">
-        <CursorArrowRaysIcon class="w-6 h-6" />
-        <span class="text-xs mt-1">Select</span>
-      </button>
-
+ 
       <button @click="setPanel('draw')" :class="getToolButtonClass('draw')" title="Draw">
         <PaintBrushIcon class="w-6 h-6" />
         <span class="text-xs mt-1">Draw</span>
@@ -38,10 +34,6 @@
         <span class="text-xs mt-1">Convert</span>
       </button>
 
-      <button @click="setPanel('organize')" :class="getToolButtonClass('organize')" title="Organize Pages">
-        <RectangleStackIcon class="w-6 h-6" />
-        <span class="text-xs mt-1">Organize</span>
-      </button>
 
       <button @click="setPanel('secure')" :class="getToolButtonClass('secure')" title="Secure PDF">
         <LockClosedIcon class="w-6 h-6" />

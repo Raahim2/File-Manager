@@ -1,6 +1,6 @@
 <template>
-  <div ref="viewerContainer" class="min-h-[300px]">
-    <!-- Show upload box if no PDF loaded -->
+  <div ref="viewerContainer" class="min-h-[300px] h-full overflow-auto">
+    <!-- Upload box remains the same -->
     <div v-if="!pdfArrayBuffer" class="flex justify-center items-center h-full">
       <label 
         class="flex flex-col items-center justify-center w-full max-w-lg p-8 md:p-12 bg-white border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors"
@@ -16,12 +16,14 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, defineExpose } from 'vue';
+import { ref, watch, defineExpose } from 'vue';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker?url';
-import { PDFDocument, rgb, StandardFonts, degrees } from 'pdf-lib';
 import { DocumentArrowUpIcon } from '@heroicons/vue/24/outline';
-import JSZip from 'jszip';
+import { useDrawing } from '@/composable/useDrawing';
+import { useConvert } from '@/composable/useConvert';
+import { useOrganise } from '@/composable/useOrganise';
+import { useEdit } from '@/composable/useEdit'; 
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
@@ -31,73 +33,129 @@ const props = defineProps({
   drawingOptions: { type: Object, required: true },
   textOptions: { type: Object, required: true },
 });
-const emit = defineEmits(['file-chosen']);
+
+const emit = defineEmits(['file-chosen', 'organize-requested']);
 
 const viewerContainer = ref(null);
 const fileInput = ref(null);
 const baseCanvases = ref([]);
 const overlayCanvases = ref([]);
-let pdfDoc = null; 
+let pdfDoc = null;
 
-// Drawing state
-let isDrawing = false;
-let startX = 0, startY = 0;
-let currentCanvasContext = null;
-let canvasSnapshot = null;
+// --- A single, constant scale for the PDF rendering ---
+const PDF_SCALE = 1.5;
+
+const { startDrawing, draw, stopDrawing } = useDrawing(props);
+const { convertToImage, convertToText, convertToJson, convertToHtml, convertToWord } = useConvert({ pdfDoc: () => pdfDoc, baseCanvases, overlayCanvases });
+const { mergePdfs, addBlankPage, deletePage, splitPdf, insertPdf } = useOrganise();
+const { drawTextOnCanvas } = useEdit();
 
 const triggerFileInput = () => { fileInput.value?.click(); };
 
 const handleFileSelected = (event) => {
   const f = event.target.files[0];
-  if (!f || f.type !== 'application/pdf') { alert('Please select a valid PDF file.'); return; }
+  if (!f) return;
   const reader = new FileReader();
   reader.onload = (e) => { emit('file-chosen', { arrayBuffer: e.target.result, name: f.name }); };
   reader.readAsArrayBuffer(f);
 };
 
+const createAddPageButton = (pageIndex) => {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'relative flex justify-center items-center h-12 group my-2';
+  
+  const line = document.createElement('div');
+  line.className = 'w-full border-t-2 border-dashed border-slate-300 group-hover:border-blue-400 transition-colors';
+  wrapper.appendChild(line);
+  
+  const button = document.createElement('button');
+  button.className = 'absolute z-10 w-8 h-8 flex items-center justify-center bg-white border-2 border-slate-300 rounded-full text-slate-400 transition-all group-hover:scale-110 group-hover:border-blue-500 group-hover:text-blue-500 shadow';
+  button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>`;
+  wrapper.appendChild(button);
+  
+  const menu = document.createElement('div');
+
+  // ===================== FIX STARTS HERE =====================
+  // Determine the menu's position based on whether it's the first button or not.
+  const positionClasses = pageIndex === 0
+    ? 'top-full mt-2'    // If it's the first button, pop the menu DOWN.
+    : 'bottom-full mb-2'; // For all other buttons, pop the menu UP.
+
+  const baseClasses = 'absolute z-20 bg-white rounded-md shadow-lg border border-slate-200 w-48 overflow-hidden transition-all transform scale-95 opacity-0 pointer-events-none group-focus-within:scale-100 group-focus-within:opacity-100 group-focus-within:pointer-events-auto';
+  
+  // Combine the base classes with the dynamic position classes.
+  menu.className = `${baseClasses} ${positionClasses}`;
+  // ===================== FIX ENDS HERE =======================
+
+  const addBlankBtn = document.createElement('button');
+  addBlankBtn.className = 'w-full flex items-center space-x-3 px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-100';
+  addBlankBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg> <span>Add Blank Page</span>`;
+  addBlankBtn.onclick = () => { emit('organize-requested', { action: 'add-page', index: pageIndex }); };
+  menu.appendChild(addBlankBtn);
+  
+  const mergeBtn = document.createElement('button');
+  mergeBtn.className = 'w-full flex items-center space-x-3 px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-100';
+  mergeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3.75H6.912a2.25 2.25 0 00-2.15 1.588L2.35 13.177a2.25 2.25 0 00-.1.661V18a2.25 2.25 0 002.25 2.25h13.5A2.25 2.25 0 0021 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 00-2.15-1.588H15M2.25 13.5h3.86a2.25 2.25 0 012.012 1.244l.256.512a2.25 2.25 0 002.013 1.244h3.218a2.25 2.25 0 002.013-1.244l.256-.512a2.25 2.25 0 012.013-1.244h3.859M12 3v8.25m0 0l-3-3m3 3l3-3" /></svg> <span>Merge/Insert PDF</span>`;
+  mergeBtn.onclick = () => { emit('organize-requested', { action: 'merge', index: pageIndex }); };
+  menu.appendChild(mergeBtn);
+  
+  button.addEventListener('click', () => { button.focus(); });
+  wrapper.appendChild(menu);
+  
+  return wrapper;
+};
+
 const renderPdf = async (arrayBuffer) => {
   if (!viewerContainer.value || !arrayBuffer) return;
+  const scrollTop = viewerContainer.value.scrollTop;
   viewerContainer.value.innerHTML = "";
   baseCanvases.value = [];
   overlayCanvases.value = [];
   pdfDoc = null;
 
+  // Re-apply flex centering styles
   viewerContainer.value.style.display = 'flex';
   viewerContainer.value.style.flexDirection = 'column';
   viewerContainer.value.style.alignItems = 'center';
 
-  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer.slice(0) });
   try {
-    pdfDoc = await loadingTask.promise;
+    const loadedPdfDoc = await loadingTask.promise;
+    pdfDoc = loadedPdfDoc;
 
-    for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
-      const page = await pdfDoc.getPage(pageNum);
-      const scale = window.devicePixelRatio > 1 ? 2.0 : 1.5;
-      const viewport = page.getViewport({ scale });
+    viewerContainer.value.appendChild(createAddPageButton(0));
+
+    for (let pageNum = 1; pageNum <= loadedPdfDoc.numPages; pageNum++) {
+      const page = await loadedPdfDoc.getPage(pageNum);
+      const viewport = page.getViewport({ scale: PDF_SCALE });
+      
       const pageWrapper = document.createElement('div');
       pageWrapper.className = "page-wrapper mb-4 shadow-lg rounded-md";
       pageWrapper.style.position = 'relative';
+
+      // Set max-width on the '+' button wrappers to match the PDF page width
+      const addButtonWrapper = createAddPageButton(pageNum);
+      addButtonWrapper.style.maxWidth = `${viewport.width / PDF_SCALE}px`;
 
       const canvas = document.createElement('canvas');
       canvas.className = "bg-white rounded-md";
       const context = canvas.getContext('2d');
       canvas.height = viewport.height;
       canvas.width = viewport.width;
-      canvas.style.width = `${viewport.width / scale}px`;
-      canvas.style.height = `${viewport.height / scale}px`;
+      canvas.style.width = `${viewport.width / PDF_SCALE}px`;
+      canvas.style.height = `${viewport.height / PDF_SCALE}px`;
 
       const overlayCanvas = document.createElement('canvas');
       overlayCanvas.className = "absolute top-0 left-0";
       overlayCanvas.dataset.pageNumber = pageNum;
       overlayCanvas.height = viewport.height;
       overlayCanvas.width = viewport.width;
-      overlayCanvas.style.width = `${viewport.width / scale}px`;
-      overlayCanvas.style.height = `${viewport.height / scale}px`;
+      overlayCanvas.style.width = `${viewport.width / PDF_SCALE}px`;
+      overlayCanvas.style.height = `${viewport.height / PDF_SCALE}px`;
       const currentPointerEvents = (props.activePanel === 'draw' || props.activePanel === 'edit') ? 'auto' : 'none';
       overlayCanvas.style.pointerEvents = currentPointerEvents;
       overlayCanvas.style.cursor = (props.activePanel === 'draw') ? 'crosshair' : (props.activePanel === 'edit' ? 'text' : 'default');
-
-
+      
       overlayCanvas.addEventListener('mousedown', startDrawing);
       overlayCanvas.addEventListener('mousemove', draw);
       overlayCanvas.addEventListener('mouseup', stopDrawing);
@@ -114,21 +172,32 @@ const renderPdf = async (arrayBuffer) => {
       overlayCanvases.value.push(overlayCanvas);
       
       await page.render({ canvasContext: context, viewport }).promise;
+
+      viewerContainer.value.appendChild(addButtonWrapper);
     }
+    // Set max-width on the first '+' button as well
+    const firstAddButton = viewerContainer.value.querySelector('.group');
+    if (firstAddButton) {
+        const firstPageWrapper = viewerContainer.value.querySelector('.page-wrapper');
+        if (firstPageWrapper) {
+            firstAddButton.style.maxWidth = firstPageWrapper.style.width;
+        }
+    }
+
+    viewerContainer.value.scrollTop = scrollTop;
   } catch (err) {
     console.error('Error rendering PDF:', err);
     alert('Failed to render the PDF. The file might be corrupted.');
   }
 };
 
-// --- EVENT HANDLING ---
 const handleViewerClick = (e) => {
+  // We only add a text box if the 'edit' panel is active and the click is on a canvas
   if (props.activePanel === 'edit' && e.target.tagName === 'CANVAS') {
     addTextBox(e);
   }
 };
 
-// --- ADD TEXT LOGIC ---
 const addTextBox = (e) => {
   const pageWrapper = e.target.closest('.page-wrapper');
   if (!pageWrapper) return;
@@ -137,286 +206,76 @@ const addTextBox = (e) => {
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
 
-  const textarea = document.createElement('textarea');
-  textarea.style.position = 'absolute';
-  textarea.style.left = `${x}px`;
-  textarea.style.top = `${y}px`;
-  textarea.style.border = '1px dashed #3B82F6';
-  textarea.style.outline = 'none';
-  textarea.style.padding = '2px';
-  textarea.style.backgroundColor = 'rgba(191, 219, 254, 0.7)';
-  textarea.style.resize = 'none';
-  textarea.style.overflow = 'hidden';
-  textarea.style.fontFamily = props.textOptions.font || 'Helvetica';
-  textarea.style.fontSize = `${props.textOptions.size || 16}px`;
-  textarea.style.color = props.textOptions.color || '#000000';
-  textarea.rows = 1;
-  textarea.wrap = "off";
+  // Use a contenteditable div instead of a textarea to allow for rich text styling
+  const editableDiv = document.createElement('div');
+  editableDiv.contentEditable = true;
+  editableDiv.setAttribute('role', 'textbox');
+  editableDiv.className = 'temp-text-editor'; // for potential future styling
 
-  pageWrapper.appendChild(textarea);
-  textarea.focus();
-
-  const autoResize = () => {
-    textarea.style.height = 'auto';
-    textarea.style.width = 'auto';
-    textarea.style.height = `${textarea.scrollHeight}px`;
-    textarea.style.width = `${textarea.scrollWidth}px`;
-  };
-  textarea.addEventListener('input', autoResize);
+  // Apply styles to the temporary editor div
+  editableDiv.style.position = 'absolute';
+  editableDiv.style.left = `${x}px`;
+  editableDiv.style.top = `${y}px`;
+  editableDiv.style.border = '1px dashed #3B82F6';
+  editableDiv.style.outline = 'none';
+  editableDiv.style.padding = '2px';
+  editableDiv.style.minWidth = '20px'; // Prevent it from being invisible
+  editableDiv.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+  editableDiv.style.lineHeight = '1.2';
   
-  textarea.addEventListener('blur', () => {
-    drawTextOnCanvas(e.target, textarea.value, x, y);
-    pageWrapper.removeChild(textarea);
-  });
-};
+  // Apply styles from props
+  editableDiv.style.fontFamily = props.textOptions.font;
+  editableDiv.style.fontSize = `${props.textOptions.size}px`;
+  editableDiv.style.color = props.textOptions.color;
+  editableDiv.style.fontWeight = props.textOptions.isBold ? 'bold' : 'normal';
+  editableDiv.style.fontStyle = props.textOptions.isItalic ? 'italic' : 'normal';
 
-const drawTextOnCanvas = (canvas, text, x, y) => {
-    if (!text.trim()) return;
+  pageWrapper.appendChild(editableDiv);
+  editableDiv.focus();
 
+  // When the user clicks away, finalize the text
+  editableDiv.addEventListener('blur', () => {
+    // Call the composable function to draw the styled text
+    const canvas = e.target;
     const ctx = canvas.getContext('2d');
     const scale = canvas.width / canvas.getBoundingClientRect().width;
     
-    ctx.font = `${props.textOptions.size * scale}px ${props.textOptions.font || 'Helvetica'}`;
-    ctx.fillStyle = props.textOptions.color;
-    const scaledY = y * scale + props.textOptions.size * scale;
-    ctx.fillText(text, x * scale, scaledY);
+    drawTextOnCanvas(
+      ctx,
+      editableDiv.innerText,
+      x,
+      y,
+      scale,
+      props.textOptions // Pass all the options
+    );
+    // Clean up the temporary div
+    pageWrapper.removeChild(editableDiv);
+  }, { once: true }); // Use 'once' to auto-remove the listener
 };
 
-// --- DRAWING LOGIC ---
-const getCoords = (e) => {
-  const event = e.touches ? e.touches[0] : e;
-  const rect = event.target.getBoundingClientRect();
-  const scaleX = event.target.width / rect.width;
-  const scaleY = event.target.height / rect.height;
-  return { x: (event.clientX - rect.left) * scaleX, y: (event.clientY - rect.top) * scaleY };
-};
 
-const startDrawing = (e) => {
-  if (props.activePanel !== 'draw' || !e.target) return;
-  e.preventDefault();
-  isDrawing = true;
-  currentCanvasContext = e.target.getContext('2d');
-  const { x, y } = getCoords(e);
-  startX = x;
-  startY = y;
-  
-  currentCanvasContext.lineWidth = props.drawingOptions.size;
-  currentCanvasContext.lineCap = 'round';
-  currentCanvasContext.lineJoin = 'round';
-  
-  const tool = props.drawingOptions.tool;
-
-  if (tool === 'pen' || tool === 'highlighter') {
-    currentCanvasContext.globalCompositeOperation = 'source-over';
-    currentCanvasContext.strokeStyle = props.drawingOptions.color;
-    currentCanvasContext.globalAlpha = tool === 'highlighter' ? 0.4 : 1.0;
-    currentCanvasContext.beginPath();
-    currentCanvasContext.moveTo(startX, startY);
-  } else if (tool === 'eraser') {
-    currentCanvasContext.globalCompositeOperation = 'destination-out';
-    currentCanvasContext.beginPath();
-    currentCanvasContext.moveTo(startX, startY);
-  } else if (tool === 'shape') {
-    canvasSnapshot = currentCanvasContext.getImageData(0, 0, e.target.width, e.target.height);
-  }
-};
-
-const draw = (e) => {
-  if (!isDrawing || props.activePanel !== 'draw') return;
-  e.preventDefault();
-  const { x, y } = getCoords(e);
-  const tool = props.drawingOptions.tool;
-
-  if (tool === 'pen' || tool === 'highlighter' || tool === 'eraser') {
-    currentCanvasContext.lineTo(x, y);
-    currentCanvasContext.stroke();
-  } else if (tool === 'shape') {
-    currentCanvasContext.putImageData(canvasSnapshot, 0, 0);
-    drawShape(currentCanvasContext, x, y);
-  }
-};
-
-const stopDrawing = (e) => {
-  if (!isDrawing) return;
-  isDrawing = false;
-  const tool = props.drawingOptions.tool;
-  
-  if (tool === 'shape' && e) {
-    const { x, y } = getCoords(e);
-    drawShape(currentCanvasContext, x, y);
-    canvasSnapshot = null;
-  } else {
-    currentCanvasContext?.closePath();
-  }
-  currentCanvasContext = null;
-};
-
-const drawShape = (ctx, endX, endY) => {
-    ctx.strokeStyle = props.drawingOptions.color;
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 1.0;
-    ctx.beginPath();
-    
-    const width = endX - startX;
-    const height = endY - startY;
-
-    switch(props.drawingOptions.shapeType) {
-        case 'rectangle': ctx.strokeRect(startX, startY, width, height); break;
-        case 'ellipse': ctx.ellipse(startX + width / 2, startY + height / 2, Math.abs(width / 2), Math.abs(height / 2), 0, 0, 2 * Math.PI); break;
-        case 'line': ctx.moveTo(startX, startY); ctx.lineTo(endX, endY); break;
-    }
-    ctx.stroke();
-};
-
-// --- CONVERSION & ORGANIZATION LOGIC ---
-const downloadFile = (blob, filename) => {
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(link.href);
-};
-
-const mergeCanvasLayers = (pageIndex) => {
-  const baseCanvas = baseCanvases.value[pageIndex];
-  const overlayCanvas = overlayCanvases.value[pageIndex];
-  const tempCanvas = document.createElement('canvas');
-  tempCanvas.width = baseCanvas.width;
-  tempCanvas.height = baseCanvas.height;
-  const tempCtx = tempCanvas.getContext('2d');
-  tempCtx.drawImage(baseCanvas, 0, 0);
-  tempCtx.drawImage(overlayCanvas, 0, 0);
-  return tempCanvas;
-};
-
-const convertToImage = async ({ format, baseFilename }) => {
-  if (!pdfDoc || baseCanvases.value.length === 0) return;
-  const fileExtension = format === 'jpeg' ? 'jpg' : 'png';
-
-  if (pdfDoc.numPages === 1) {
-    const mergedCanvas = mergeCanvasLayers(0);
-    const dataUrl = mergedCanvas.toDataURL(`image/${format}`, 0.9);
-    const blob = await (await fetch(dataUrl)).blob();
-    downloadFile(blob, `${baseFilename}.${fileExtension}`);
-    return;
-  }
-
-  alert('Preparing your download... This may take a moment for multiple pages.');
-  const zip = new JSZip();
-  for (let i = 0; i < pdfDoc.numPages; i++) {
-    const mergedCanvas = mergeCanvasLayers(i);
-    const dataUrl = mergedCanvas.toDataURL(`image/${format}`, 0.9);
-    const blob = await (await fetch(dataUrl)).blob();
-    zip.file(`${baseFilename}_page_${i + 1}.${fileExtension}`, blob);
-  }
-  const zipBlob = await zip.generateAsync({ type: 'blob' });
-  downloadFile(zipBlob, `${baseFilename}_${fileExtension}.zip`);
-};
-
-const convertToText = async ({ baseFilename }) => {
-  if (!pdfDoc) return;
-  let fullText = '';
-  for (let i = 1; i <= pdfDoc.numPages; i++) {
-    const page = await pdfDoc.getPage(i);
-    const textContent = await page.getTextContent();
-    const pageText = textContent.items.map(item => item.str).join(' ');
-    fullText += `--- PAGE ${i} ---\n\n${pageText}\n\n`;
-  }
-  const textBlob = new Blob([fullText], { type: 'text/plain;charset=utf-8' });
-  downloadFile(textBlob, `${baseFilename}.txt`);
-};
-
-const convertToJson = async ({ baseFilename }) => {
-  if (!pdfDoc) return;
-  const jsonData = {
-    filename: baseFilename + '.pdf',
-    numPages: pdfDoc.numPages,
-    pages: []
-  };
-  for (let i = 1; i <= pdfDoc.numPages; i++) {
-    const page = await pdfDoc.getPage(i);
-    const textContent = await page.getTextContent();
-    const pageText = textContent.items.map(item => item.str).join(' ');
-    jsonData.pages.push({ page: i, content: pageText });
-  }
-  const jsonString = JSON.stringify(jsonData, null, 2);
-  const jsonBlob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
-  downloadFile(jsonBlob, `${baseFilename}.json`);
-};
-
-const convertToHtml = async ({ baseFilename, fileExtension = 'html', mimeType = 'text/html' }) => {
-  if (!pdfDoc) return;
-  let htmlString = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${baseFilename}</title><style>body{font-family:sans-serif;padding:2em;}.page{border:1px solid #ccc;padding:1.5em;margin-bottom:2em;}h2{border-bottom:2px solid #eee;padding-bottom:.5em;}p{white-space:pre-wrap;}</style></head><body>`;
-  for (let i = 1; i <= pdfDoc.numPages; i++) {
-    const page = await pdfDoc.getPage(i);
-    const textContent = await page.getTextContent();
-    const pageText = textContent.items.map(item => item.str).join(' ');
-    htmlString += `<div class="page"><h2>Page ${i}</h2><p>${pageText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p></div>`;
-  }
-  htmlString += `</body></html>`;
-  const htmlBlob = new Blob([htmlString], { type: `${mimeType};charset=utf-8` });
-  downloadFile(htmlBlob, `${baseFilename}.${fileExtension}`);
-};
-
-const rotatePdf = async () => {
-  try {
-    const pdf = await PDFDocument.load(props.pdfArrayBuffer);
-    const pages = pdf.getPages();
-    pages.forEach(page => {
-      const currentRotation = page.getRotation().angle;
-      page.setRotation(degrees(currentRotation + 90));
-    });
-    return await pdf.save();
-  } catch (error) {
-    console.error('Failed to rotate PDF:', error);
-    alert('An error occurred while rotating the PDF.');
-    return null;
-  }
-};
-
-const mergePdfs = async (pdfBuffers) => {
-  try {
-    const mergedPdf = await PDFDocument.create();
-    for (const pdfBuffer of pdfBuffers) {
-      const pdfToMerge = await PDFDocument.load(pdfBuffer);
-      const pages = await mergedPdf.copyPages(pdfToMerge, pdfToMerge.getPageIndices());
-      pages.forEach(page => mergedPdf.addPage(page));
-    }
-    return await mergedPdf.save();
-  } catch (error) {
-    console.error('Failed to merge PDFs:', error);
-    alert('An error occurred while merging the PDFs. Ensure all files are valid.');
-    return null;
-  }
-};
-
-defineExpose({
-  convertToImage,
-  convertToText,
-  convertToJson,
-  convertToHtml,
-  rotatePdf,
-  mergePdfs
-});
-
-// --- WATCHERS and LIFECYCLE ---
-watch(() => props.pdfArrayBuffer, (v) => { if (v) renderPdf(v); }, { immediate: true });
+// --- WATCHERS ---
+watch(() => props.pdfArrayBuffer, (newBuffer) => { if (newBuffer) renderPdf(newBuffer); }, { immediate: true });
 
 watch(() => props.activePanel, (newVal) => {
+  // Update overlay cursors when active panel changes
   overlayCanvases.value.forEach(c => {
-    const pointerEvents = (newVal === 'draw' || newVal === 'edit') ? 'auto' : 'none';
-    c.style.pointerEvents = pointerEvents;
+    c.style.pointerEvents = (newVal === 'draw' || newVal === 'edit') ? 'auto' : 'none';
     c.style.cursor = (newVal === 'draw') ? 'crosshair' : (newVal === 'edit' ? 'text' : 'default');
   });
 });
 
-onMounted(() => {
-  if (props.pdfArrayBuffer) {
-    renderPdf(props.pdfArrayBuffer);
-  }
-  viewerContainer.value.addEventListener('click', handleViewerClick);
-});
+watch(viewerContainer, (newEl) => {
+    if (newEl) {
+        newEl.addEventListener('click', handleViewerClick);
+    }
+}, { immediate: true })
 
+
+defineExpose({
+  // Expose everything needed by App.vue
+  convertToImage, convertToText, convertToJson, convertToHtml, convertToWord,
+  mergePdfs, addBlankPage, deletePage, splitPdf, insertPdf,
+  pdfDoc: () => pdfDoc,
+});
 </script>
