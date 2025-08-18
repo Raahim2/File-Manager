@@ -1,3 +1,4 @@
+
 // composables/useDrawing.js
 import { ref } from 'vue';
 
@@ -6,8 +7,9 @@ export function useDrawing(props) {
   let startX = 0, startY = 0;
   let currentCanvasContext = null;
   let canvasSnapshot = null;
+  let hasDrawn = false; // Flag to check if mouse moved after mousedown
 
-  const getCoords = (e) => {
+const getCoords = (e) => {
     const event = e.touches ? e.touches[0] : e;
     const rect = event.target.getBoundingClientRect();
     const scaleX = event.target.width / rect.width;
@@ -22,6 +24,7 @@ export function useDrawing(props) {
     if (props.activePanel !== 'draw' || !e.target) return;
     e.preventDefault();
     isDrawing.value = true;
+    hasDrawn = false; // Reset on new drawing action
     currentCanvasContext = e.target.getContext('2d');
     const { x, y } = getCoords(e);
     startX = x;
@@ -50,6 +53,7 @@ export function useDrawing(props) {
   const draw = (e) => {
     if (!isDrawing.value || props.activePanel !== 'draw') return;
     e.preventDefault();
+    hasDrawn = true; // Mark that a drawing motion occurred
     const { x, y } = getCoords(e);
     const tool = props.drawingOptions.tool;
 
@@ -62,22 +66,32 @@ export function useDrawing(props) {
     }
   };
 
-  const stopDrawing = (e) => {
+  // +++ UPDATED stopDrawing to accept a callback +++
+  const stopDrawing = (onDrawEndCallback, e) => {
     if (!isDrawing.value) return;
+    
+    const wasDrawing = isDrawing.value;
     isDrawing.value = false;
-    const tool = props.drawingOptions.tool;
-    if (tool === 'shape' && e) {
-      const { x, y } = getCoords(e);
-      // Final draw on mouse up
-      drawShape(currentCanvasContext, x, y);
-      canvasSnapshot = null;
-    } else {
-      currentCanvasContext?.closePath();
+
+    if (wasDrawing && hasDrawn) {
+        const tool = props.drawingOptions.tool;
+        if (tool === 'shape' && e) {
+            const { x, y } = getCoords(e);
+            drawShape(currentCanvasContext, x, y);
+        } else {
+            currentCanvasContext?.closePath();
+        }
+        
+        // Trigger the callback to save history state
+        if (typeof onDrawEndCallback === 'function') {
+            onDrawEndCallback();
+        }
     }
+
+    canvasSnapshot = null;
     currentCanvasContext = null;
   };
 
-  // ===================== FIX STARTS HERE =====================
   const drawShape = (ctx, endX, endY) => {
     // Set common properties
     ctx.globalCompositeOperation = 'source-over';
@@ -126,8 +140,6 @@ export function useDrawing(props) {
     }
     // No need for a final ctx.stroke() here as it's handled inside the cases
   };
-  // ===================== FIX ENDS HERE =====================
-
 
   return {
     startDrawing,

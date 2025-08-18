@@ -24,6 +24,7 @@
 <script setup>
 import { ref, watch, defineExpose, onMounted , nextTick } from 'vue';
 import * as pdfjsLib from 'pdfjs-dist';
+import { PDFDocument } from 'pdf-lib'; 
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker?url';
 import { DocumentArrowUpIcon } from '@heroicons/vue/24/outline';
 import { useDrawing } from '@/composable/useDrawing';
@@ -31,6 +32,7 @@ import { useConvert } from '@/composable/useConvert';
 import { useOrganise } from '@/composable/useOrganise';
 import { useEdit } from '@/composable/useEdit'; 
 import { useAdvance } from '@/composable/useAdvance';
+import { useHistory } from '@/composable/useHistory';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
@@ -42,7 +44,7 @@ const props = defineProps({
   signatureToPlace: { type: String, default: null },
 });
 
-const emit = defineEmits(['file-chosen', 'organize-requested', 'set-active-panel']);
+const emit = defineEmits(['file-chosen', 'organize-requested', 'set-active-panel', 'history-updated']);
 
 // FIX: New ref for the container we will manually manipulats
 const pdfRenderContainer = ref(null); 
@@ -52,8 +54,35 @@ const overlayCanvases = ref([]);
 let pdfDoc = null;
 
 const PDF_SCALE = 1.5;
+const history = useHistory();
 
-const { startDrawing, draw, stopDrawing } = useDrawing(props);
+
+const saveHistoryState = () => {
+  const currentState = overlayCanvases.value.map(canvas => {
+    return canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+  });
+  history.pushState(currentState);
+  emit('history-updated', { canUndo: history.canUndo.value, canRedo: history.canRedo.value });
+};
+
+const applyHistoryState = (state) => {
+  if (!state) return;
+  state.forEach((imageData, index) => {
+    if (overlayCanvases.value[index]) {
+      const canvas = overlayCanvases.value[index];
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.putImageData(imageData, 0, 0);
+    }
+  });
+  emit('history-updated', { canUndo: history.canUndo.value, canRedo: history.canRedo.value });
+};
+
+const undo = () => applyHistoryState(history.undo());
+const redo = () => applyHistoryState(history.redo());
+
+const { startDrawing, draw, stopDrawing: baseStopDrawing } = useDrawing(props);
+const stopDrawing = (e) => baseStopDrawing(saveHistoryState, e);
 const { convertToImage, convertToText, convertToJson, convertToHtml, convertToWord } = useConvert({ pdfDoc: () => pdfDoc, baseCanvases, overlayCanvases });
 const { mergePdfs, addBlankPage, deletePage, splitPdf, insertPdf } = useOrganise();
 const { addWatermark } = useAdvance();
@@ -101,6 +130,40 @@ const createAddPageButton = (pageIndex) => {
   return wrapper;
 };
 
+const savePdfWithAnnotations = async (sourceBuffer) => {
+  try {
+    const pdfDocToSave = await PDFDocument.load(sourceBuffer);
+    const pages = pdfDocToSave.getPages();
+
+    for (let i = 0; i < overlayCanvases.value.length; i++) {
+      const overlayCanvas = overlayCanvases.value[i];
+      // Check if canvas is not empty to avoid adding blank images
+      const isCanvasBlank = !overlayCanvas.getContext('2d')
+        .getImageData(0, 0, overlayCanvas.width, overlayCanvas.height).data
+        .some(channel => channel !== 0);
+
+      if (!isCanvasBlank && pages[i]) {
+        const page = pages[i];
+        const pngImageBytes = await fetch(overlayCanvas.toDataURL('image/png')).then(res => res.arrayBuffer());
+        const pngImage = await pdfDocToSave.embedPng(pngImageBytes);
+        
+        page.drawImage(pngImage, {
+          x: 0,
+          y: 0,
+          width: page.getWidth(),
+          height: page.getHeight(),
+        });
+      }
+    }
+    return await pdfDocToSave.save();
+  } catch (error) {
+    console.error("Error saving PDF with annotations:", error);
+    alert("Could not save the PDF. See the console for details.");
+    return null;
+  }
+};
+
+
 const renderPdf = async (arrayBuffer) => {
   // FIX: Target the new pdfRenderContainer ref
   if (!pdfRenderContainer.value || !arrayBuffer) return; 
@@ -117,7 +180,10 @@ const renderPdf = async (arrayBuffer) => {
   container.style.flexDirection = 'column';
   container.style.alignItems = 'center';
 
-  // ... The rest of the renderPdf function is correct. We just change where it appends children.
+  history.clear();
+  emit('history-updated', { canUndo: false, canRedo: false });
+
+
   const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer.slice(0) });
   try {
     const loadedPdfDoc = await loadingTask.promise;
@@ -163,6 +229,9 @@ const renderPdf = async (arrayBuffer) => {
 
       container.appendChild(addButtonWrapper); // <-- Use the local 'container' variable
     }
+
+
+
     
     const firstAddButton = container.querySelector('.group');
     if (firstAddButton) {
@@ -172,6 +241,10 @@ const renderPdf = async (arrayBuffer) => {
         }
     }
     container.scrollTop = scrollTop;
+
+    await nextTick(); // Ensure canvases are in the DOM
+    saveHistoryState();
+
   } catch (err) {
     console.error('Error rendering PDF:', err);
     alert('Failed to render the PDF. The file might be corrupted.');
@@ -223,6 +296,7 @@ const addTextBox = (e) => {
     
     drawTextOnCanvas(ctx, editableDiv.innerText, x, y, scale, props.textOptions);
     pageWrapper.removeChild(editableDiv);
+    saveHistoryState();
   }, { once: true });
 };
 
@@ -241,19 +315,12 @@ const placeSignature = (e) => {
     const sigHeight = (signatureImage.height / signatureImage.width) * sigWidth;
     ctx.drawImage(signatureImage, x - sigWidth / 2, y - sigHeight / 2, sigWidth, sigHeight);
     emit('set-active-panel', 'draw');
+    saveHistoryState();
   };
   signatureImage.src = props.signatureToPlace;
 };
 
-// watch(() => props.pdfArrayBuffer, (newBuffer) => { 
-//   if (newBuffer) {
-//     // Wait for the DOM to update (for v-else to create the pdfRenderContainer)
-//     // before trying to render into it.
-//     watch(pdfRenderContainer, (newEl) => {
-//       if (newEl) renderPdf(newBuffer);
-//     }, { once: true });
-//   }
-// }, { immediate: true });
+
 
 watch(() => props.pdfArrayBuffer, async (newBuffer) => {
   if (newBuffer) {
@@ -299,8 +366,10 @@ watch(pdfRenderContainer, (newEl, oldEl) => {
 }, { immediate: true });
 
 defineExpose({
+  undo,
+  redo,
   convertToImage, convertToText, convertToJson, convertToHtml, convertToWord,
-  mergePdfs, addBlankPage, deletePage, splitPdf, insertPdf, addWatermark,
+  mergePdfs, addBlankPage, deletePage, splitPdf, insertPdf, addWatermark, savePdfWithAnnotations,
   pdfDoc: () => pdfDoc,
 });
 </script>

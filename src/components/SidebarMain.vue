@@ -37,7 +37,7 @@
 
       <button @click="setPanel('advance')" :class="getToolButtonClass('advance')" title="Advance Options">
         <LockClosedIcon class="w-6 h-6" />
-        <span class="text-xs mt-1">Advance Options</span>
+        <span class="text-xs mt-1">Advance</span>
       </button>
     </div>
   </aside>

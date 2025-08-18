@@ -1,6 +1,14 @@
 <template>
   <div class="h-screen flex flex-col font-sans bg-slate-50 text-slate-800 antialiased">
-    <HeaderBar :pdfName="pdfName" />
+    <HeaderBar
+     :pdfName="pdfName" 
+      :isPdfLoaded="!!pdfArrayBuffer"
+       :canUndo="canUndo"
+      :canRedo="canRedo"
+     @download-pdf="handleDownload"
+     @undo-clicked="handleUndo"
+      @redo-clicked="handleRedo"
+    />
 
     <div class="flex flex-1 overflow-hidden">
       <SidebarMain
@@ -35,7 +43,9 @@
           :signatureToPlace="savedSignature"       
           @file-chosen="onFileChosen"
           @organize-requested="handleOrganization" 
-          @set-active-panel="setActivePanel"       
+          @set-active-panel="setActivePanel"   
+         @history-updated="updateHistoryState"
+
         />
       </main>
     </div>
@@ -112,7 +122,7 @@
 </template>
 
 <script setup>
-import { ref  ,  defineAsyncComponent} from 'vue';
+import { ref  ,  defineAsyncComponent , onMounted  ,onUnmounted} from 'vue';
 import HeaderBar from './components/HeaderBar.vue';
 import SidebarMain from './components/SidebarMain.vue';
 // import SidebarToolPanel from './components/SidebarToolPanel.vue';
@@ -152,6 +162,80 @@ const pdfViewerRef = ref(null);
 const mergeFileInput = ref(null);
 const watermarkFileInput = ref(null);
 let mergeTargetIndex = 0; 
+
+const canUndo = ref(false);
+const canRedo = ref(false);
+
+const updateHistoryState = ({ canUndo: undoState, canRedo: redoState }) => {
+  canUndo.value = undoState;
+  canRedo.value = redoState;
+};
+
+const handleUndo = () => {
+  pdfViewerRef.value?.undo();
+};
+
+const handleRedo = () => {
+  pdfViewerRef.value?.redo();
+};
+
+const handleKeyDown = (e) => {
+  const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+  if (!isCtrlOrCmd) return;
+
+  const key = e.key.toLowerCase();
+  
+  // Check if an input field is focused to prevent overriding default behavior
+  const activeEl = document.activeElement;
+  const isInputFocused = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);
+  if (isInputFocused) return;
+
+  if (key === 'z') {
+    e.preventDefault();
+    if (e.shiftKey) { // Ctrl+Shift+Z for Redo
+      if (canRedo.value) handleRedo();
+    } else { // Ctrl+Z for Undo
+      if (canUndo.value) handleUndo();
+    }
+  } else if (key === 'y') { // Ctrl+Y for Redo
+    e.preventDefault();
+    if (canRedo.value) handleRedo();
+  }
+};
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeyDown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyDown);
+});
+
+const downloadBuffer = (buffer, fileName) => {
+  const blob = new Blob([buffer], { type: 'application/pdf' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(link.href);
+};
+
+// +++ NEW DOWNLOAD HANDLER +++
+const handleDownload = async () => {
+  if (!pdfViewerRef.value || !pdfArrayBuffer.value) {
+    alert('No PDF file is loaded to save.');
+    return;
+  }
+    const newBuffer = await pdfViewerRef.value.savePdfWithAnnotations(pdfArrayBuffer.value);
+  
+  if (newBuffer) {
+    downloadBuffer(newBuffer, pdfName.value);
+  }
+};
+
+  
 
 const onFileChosen = ({ arrayBuffer, name }) => {
   pdfArrayBuffer.value = arrayBuffer;
