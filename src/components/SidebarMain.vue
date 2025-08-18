@@ -35,9 +35,9 @@
       </button>
 
 
-      <button @click="setPanel('secure')" :class="getToolButtonClass('secure')" title="Secure PDF">
+      <button @click="setPanel('advance')" :class="getToolButtonClass('advance')" title="Advance Options">
         <LockClosedIcon class="w-6 h-6" />
-        <span class="text-xs mt-1">Secure</span>
+        <span class="text-xs mt-1">Advance Options</span>
       </button>
     </div>
   </aside>
@@ -59,6 +59,7 @@ const props = defineProps({
   activePanel: { type: String, default: 'select' }
 });
 const emit = defineEmits(['set-panel', 'file-chosen']);
+
 
 const setPanel = (name) => {
   emit('set-panel', name);

@@ -57,7 +57,6 @@
           </div>
         </div>
         
-        <!-- Size / Stroke Slider -->
         <div>
           <label for="brush-size" class="text-xs font-medium text-slate-500 flex justify-between items-center">
             <span>{{ getSizeLabel() }}</span>
@@ -71,9 +70,6 @@
         </div>
       </div>
       
-      <!-- ==================================================== -->
-      <!-- =========== NEW & IMPROVED EDITING PANEL =========== -->
-      <!-- ==================================================== -->
        <div v-else-if="activePanel === 'edit'" class="space-y-6">
         <h3 class="text-sm font-semibold text-slate-800">Edit Content</h3>
         <p class="text-xs text-slate-500">Click on the page to add a text box.</p>
@@ -133,11 +129,69 @@
         <button @click="emit('convert-pdf', 'json')" class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-slate-600 hover:bg-slate-100"><CodeBracketIcon class="w-5 h-5"/><span>To JSON</span></button>
       </div>
 
-      <div v-else-if="activePanel === 'secure'" class="space-y-4">
-        <h3 class="text-sm font-semibold text-slate-800">Protect PDF</h3>
-        <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-slate-600 hover:bg-slate-100"><ShieldCheckIcon class="w-5 h-5"/><span>Add Password</span></button>
-        <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-slate-600 hover:bg-slate-100"><EyeSlashIcon class="w-5 h-5"/><span>Redact Content</span></button>
-        <button class="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-slate-600 hover:bg-slate-100"><PencilIcon class="w-5 h-5"/><span>Add Signature</span></button>
+      <div v-else-if="activePanel === 'advance'" class="space-y-4">
+        <h3 class="text-sm font-semibold text-slate-800">Advance Options</h3>
+        <div class="grid grid-cols-2 gap-2 mt-2">
+            <!-- 1. Watermark (Functional) -->
+            <button @click="emit('advance-pdf', 'watermark')" :class="getAdvanceButtonClass()">
+              <SwatchIcon class="w-6 h-6 mb-1"/>
+              <span class="text-xs">Watermark</span>
+            </button>
+
+            <!-- 2. Password (Dummy) -->
+            <button :class="getAdvanceButtonClass(true)">
+              <LockClosedIcon class="w-6 h-6 mb-1"/>
+              <span class="text-xs">Password</span>
+            </button>
+
+            <!-- 3. Redact (Dummy) -->
+             <button :class="getAdvanceButtonClass(true)">
+              <EyeSlashIcon class="w-6 h-6 mb-1"/>
+              <span class="text-xs">Redact</span>
+            </button>
+
+            <!-- 4. Sign (Dummy) -->
+           <button @click="emit('advance-pdf', 'signature')" :class="getAdvanceButtonClass()">
+              <PencilSquareIcon class="w-6 h-6 mb-1"/>
+              <span class="text-xs">Sign</span>
+          </button>
+
+            <!-- 5. Metadata (Dummy) -->
+            <button :class="getAdvanceButtonClass(true)">
+              <InformationCircleIcon class="w-6 h-6 mb-1"/>
+              <span class="text-xs">Metadata</span>
+            </button>
+
+            <!-- 6. Compress (Dummy) -->
+            <button :class="getAdvanceButtonClass(true)">
+              <DocumentMinusIcon class="w-6 h-6 mb-1"/>
+              <span class="text-xs">Compress</span>
+            </button>
+            
+            <!-- 7. OCR (Dummy) -->
+            <button :class="getAdvanceButtonClass(true)">
+              <DocumentMagnifyingGlassIcon class="w-6 h-6 mb-1"/>
+              <span class="text-xs">OCR</span>
+            </button>
+            
+            <!-- 8. Repair (Dummy) -->
+            <button :class="getAdvanceButtonClass(true)">
+              <WrenchScrewdriverIcon class="w-6 h-6 mb-1"/>
+              <span class="text-xs">Repair</span>
+            </button>
+
+            <!-- 9. Bates (Dummy) -->
+            <button :class="getAdvanceButtonClass(true)">
+              <HashtagIcon class="w-6 h-6 mb-1"/>
+              <span class="text-xs">Bates No.</span>
+            </button>
+            
+            <!-- 10. Flatten (Dummy) -->
+            <button :class="getAdvanceButtonClass(true)">
+              <Square3Stack3DIcon class="w-6 h-6 mb-1"/>
+              <span class="text-xs">Flatten</span>
+            </button>
+        </div>
       </div>
 
       <div v-else class="text-xs text-slate-500">
@@ -148,11 +202,12 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue';
 import {
-  DocumentTextIcon, LinkIcon, DocumentDuplicateIcon, PhotoIcon, TableCellsIcon, CodeBracketIcon,
-  ArrowsRightLeftIcon, ScissorsIcon, ArrowUturnRightIcon, ShieldCheckIcon, EyeSlashIcon, 
-  PencilIcon, PaintBrushIcon, BeakerIcon 
+  DocumentTextIcon, DocumentDuplicateIcon, PhotoIcon, CodeBracketIcon,
+  PencilIcon, PaintBrushIcon,
+  SwatchIcon, LockClosedIcon, EyeSlashIcon, PencilSquareIcon, InformationCircleIcon,
+  DocumentMinusIcon, DocumentMagnifyingGlassIcon, WrenchScrewdriverIcon, HashtagIcon,
+  Square3Stack3DIcon
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -167,13 +222,22 @@ const emit = defineEmits([
   'update-drawing-options', 
   'update-text-options',
   'convert-pdf', 
-  'organize-pdf'
+  'organize-pdf',
+  'advance-pdf'
 ]);
 
 
 
 const drawingColors = ['#EF4444', '#3B82F6', '#22C55E', '#EAB308', '#1F2937' , '#ffffff'];
 const textColors = ['#1F2937', '#EF4444', '#3B82F6', '#22C55E', '#8B5CF6'];
+
+const getAdvanceButtonClass = (isDisabled = false) => {
+  const baseClass = 'flex flex-col items-center justify-center p-2 rounded-md border transition-colors h-20';
+  if (isDisabled) {
+    return `${baseClass} bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed`;
+  }
+  return `${baseClass} bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:border-slate-300 active:bg-blue-50 active:border-blue-300`;
+};
 
 const getToolButtonClass = (toolName) => {
   const baseClass = 'flex flex-col items-center justify-center p-2 rounded-md border transition-colors h-14';
