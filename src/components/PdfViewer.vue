@@ -1,7 +1,5 @@
-
-
 <template>
-  <!-- The v-if/v-else structure is correct and stable -->
+  <!-- This is now just a wrapper. Vue controls the v-if/v-else. -->
   <div class="h-full">
     <!-- 1. Vue controls this upload box -->
     <div v-if="!pdfArrayBuffer" class="flex justify-center items-center h-full">
@@ -16,15 +14,15 @@
       <input ref="fileInput" type="file" accept="application/pdf" class="hidden" @change="handleFileSelected" />
     </div>
     
-    <!-- 2. The render container. We will NOT use touch-none, allowing for native scrolling. -->
+    <!-- 2. Your manual DOM code will ONLY touch this container -->
     <div v-else ref="pdfRenderContainer" class="min-h-[300px] h-full overflow-auto">
-      <!-- PDF pages will be rendered here -->
+      <!-- PDF pages will be rendered here by renderPdf() -->
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, defineExpose, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, watch, defineExpose, onMounted , nextTick } from 'vue';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker?url';
 import { DocumentArrowUpIcon } from '@heroicons/vue/24/outline';
@@ -46,27 +44,25 @@ const props = defineProps({
 
 const emit = defineEmits(['file-chosen', 'organize-requested', 'set-active-panel']);
 
+// FIX: New ref for the container we will manually manipulats
 const pdfRenderContainer = ref(null); 
 const fileInput = ref(null);
 const baseCanvases = ref([]);
 const overlayCanvases = ref([]);
 let pdfDoc = null;
 
-// --- STATE for ZOOM ---
-const zoomLevel = ref(1.5);
-const MIN_ZOOM = 0.3;
-const MAX_ZOOM = 5.0;
-let initialPinchDistance = null;
-let startZoomLevel = 1.5;
+const PDF_SCALE = 1.5;
 
-// Composables are correctly initialized here
 const { startDrawing, draw, stopDrawing } = useDrawing(props);
 const { convertToImage, convertToText, convertToJson, convertToHtml, convertToWord } = useConvert({ pdfDoc: () => pdfDoc, baseCanvases, overlayCanvases });
 const { mergePdfs, addBlankPage, deletePage, splitPdf, insertPdf } = useOrganise();
 const { addWatermark } = useAdvance();
 const { drawTextOnCanvas } = useEdit();
 
+
+
 const triggerFileInput = () => { fileInput.value?.click(); };
+
 const handleFileSelected = (event) => {
   const f = event.target.files[0];
   if (!f) return;
@@ -104,6 +100,84 @@ const createAddPageButton = (pageIndex) => {
   wrapper.appendChild(menu);
   return wrapper;
 };
+
+const renderPdf = async (arrayBuffer) => {
+  // FIX: Target the new pdfRenderContainer ref
+  if (!pdfRenderContainer.value || !arrayBuffer) return; 
+  const container = pdfRenderContainer.value;
+  const scrollTop = container.scrollTop;
+
+  // This is now safe because we are not destroying any of Vue's VDOM nodes
+  container.innerHTML = ""; 
+  baseCanvases.value = [];
+  overlayCanvases.value = [];
+  pdfDoc = null;
+
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.alignItems = 'center';
+
+  // ... The rest of the renderPdf function is correct. We just change where it appends children.
+  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer.slice(0) });
+  try {
+    const loadedPdfDoc = await loadingTask.promise;
+    pdfDoc = loadedPdfDoc;
+
+    container.appendChild(createAddPageButton(0)); // <-- Use the local 'container' variable
+
+    for (let pageNum = 1; pageNum <= loadedPdfDoc.numPages; pageNum++) {
+      const page = await loadedPdfDoc.getPage(pageNum);
+      const viewport = page.getViewport({ scale: PDF_SCALE });
+      
+      const pageWrapper = document.createElement('div');
+      pageWrapper.className = "page-wrapper mb-4 shadow-lg rounded-md";
+      pageWrapper.style.position = 'relative';
+
+      const addButtonWrapper = createAddPageButton(pageNum);
+      addButtonWrapper.style.maxWidth = `${viewport.width / PDF_SCALE}px`;
+
+      const canvas = document.createElement('canvas');
+      canvas.className = "bg-white rounded-md";
+      const context = canvas.getContext('2d');
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+      canvas.style.width = `${viewport.width / PDF_SCALE}px`;
+      canvas.style.height = `${viewport.height / PDF_SCALE}px`;
+
+      const overlayCanvas = document.createElement('canvas');
+      overlayCanvas.className = "absolute top-0 left-0";
+      overlayCanvas.dataset.pageNumber = pageNum;
+      overlayCanvas.height = viewport.height;
+      overlayCanvas.width = viewport.width;
+      overlayCanvas.style.width = `${viewport.width / PDF_SCALE}px`;
+      overlayCanvas.style.height = `${viewport.height / PDF_SCALE}px`;
+      
+      pageWrapper.appendChild(canvas);
+      pageWrapper.appendChild(overlayCanvas);
+      container.appendChild(pageWrapper); // <-- Use the local 'container' variable
+
+      baseCanvases.value.push(canvas);
+      overlayCanvases.value.push(overlayCanvas);
+      
+      await page.render({ canvasContext: context, viewport }).promise;
+
+      container.appendChild(addButtonWrapper); // <-- Use the local 'container' variable
+    }
+    
+    const firstAddButton = container.querySelector('.group');
+    if (firstAddButton) {
+        const firstPageWrapper = container.querySelector('.page-wrapper');
+        if (firstPageWrapper) {
+            firstAddButton.style.maxWidth = firstPageWrapper.style.width;
+        }
+    }
+    container.scrollTop = scrollTop;
+  } catch (err) {
+    console.error('Error rendering PDF:', err);
+    alert('Failed to render the PDF. The file might be corrupted.');
+  }
+};
+
 const handleViewerClick = (e) => {
   if (props.activePanel === 'edit' && e.target.tagName === 'CANVAS') {
     addTextBox(e);
@@ -171,170 +245,57 @@ const placeSignature = (e) => {
   signatureImage.src = props.signatureToPlace;
 };
 
-const renderPdf = async (arrayBuffer) => {
-  if (!pdfRenderContainer.value || !arrayBuffer) return; 
-  const container = pdfRenderContainer.value;
-  const scrollTop = container.scrollTop;
-  const scrollLeft = container.scrollLeft;
-  container.innerHTML = ""; 
-  baseCanvases.value = [];
-  overlayCanvases.value = [];
-  pdfDoc = null;
-  container.style.display = 'flex';
-  container.style.flexDirection = 'column';
-  container.style.alignItems = 'center';
+// watch(() => props.pdfArrayBuffer, (newBuffer) => { 
+//   if (newBuffer) {
+//     // Wait for the DOM to update (for v-else to create the pdfRenderContainer)
+//     // before trying to render into it.
+//     watch(pdfRenderContainer, (newEl) => {
+//       if (newEl) renderPdf(newBuffer);
+//     }, { once: true });
+//   }
+// }, { immediate: true });
 
-  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer.slice(0) });
-  try {
-    const loadedPdfDoc = await loadingTask.promise;
-    pdfDoc = loadedPdfDoc;
-
-    if (props.activePanel === 'organize') container.appendChild(createAddPageButton(0));
-
-    for (let pageNum = 1; pageNum <= loadedPdfDoc.numPages; pageNum++) {
-      const page = await loadedPdfDoc.getPage(pageNum);
-      // MODIFIED: Use the reactive zoomLevel ref for scaling
-      const viewport = page.getViewport({ scale: zoomLevel.value });
-      
-      const pageWrapper = document.createElement('div');
-      pageWrapper.className = "page-wrapper mb-4 shadow-lg rounded-md";
-      pageWrapper.style.position = 'relative';
-      const addButtonWrapper = createAddPageButton(pageNum);
-      addButtonWrapper.style.maxWidth = `${viewport.width / zoomLevel.value}px`;
-      const canvas = document.createElement('canvas');
-      canvas.className = "bg-white rounded-md";
-      const context = canvas.getContext('2d');
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
-      canvas.style.width = `${viewport.width / zoomLevel.value}px`;
-      canvas.style.height = `${viewport.height / zoomLevel.value}px`;
-      const overlayCanvas = document.createElement('canvas');
-      overlayCanvas.className = "absolute top-0 left-0";
-      overlayCanvas.dataset.pageNumber = pageNum;
-      overlayCanvas.height = viewport.height;
-      overlayCanvas.width = viewport.width;
-      overlayCanvas.style.width = `${viewport.width / zoomLevel.value}px`;
-      overlayCanvas.style.height = `${viewport.height / zoomLevel.value}px`;
-      
-      overlayCanvas.addEventListener('mousedown', startDrawing);
-      overlayCanvas.addEventListener('mousemove', draw);
-      overlayCanvas.addEventListener('mouseup', stopDrawing);
-      overlayCanvas.addEventListener('mouseleave', stopDrawing);
-      overlayCanvas.addEventListener('touchstart', startDrawing, { passive: false });
-      overlayCanvas.addEventListener('touchmove', draw, { passive: false });
-      overlayCanvas.addEventListener('touchend', stopDrawing);
-
-      pageWrapper.appendChild(canvas);
-      pageWrapper.appendChild(overlayCanvas);
-      container.appendChild(pageWrapper);
-      baseCanvases.value.push(canvas);
-      overlayCanvases.value.push(overlayCanvas);
-      await page.render({ canvasContext: context, viewport }).promise;
-
-      if (props.activePanel === 'organize') container.appendChild(addButtonWrapper);
-    }
-    
-    if (props.activePanel === 'organize') {
-        const firstAddButton = container.querySelector('.group');
-        if (firstAddButton) {
-            const firstPageWrapper = container.querySelector('.page-wrapper');
-            if (firstPageWrapper) firstAddButton.style.maxWidth = firstPageWrapper.style.width;
-        }
-    }
-    container.scrollTop = scrollTop;
-    container.scrollLeft = scrollLeft;
-  } catch (err) { console.error('Error rendering PDF:', err); }
-};
-
-// --- NEW/MODIFIED: ZOOM EVENT HANDLERS ---
-const handleWheel = (e) => {
-  // Only zoom if the Ctrl key (or Cmd on Mac) is pressed.
-  if (e.ctrlKey || e.metaKey) {
-    e.preventDefault(); // Prevent the browser from zooming the whole page
-    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-    zoomLevel.value = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomLevel.value * zoomFactor));
-  }
-  // If Ctrl is NOT pressed, we do NOTHING, allowing the browser's default scroll behavior.
-};
-
-const getPinchDistance = (touches) => {
-  const dx = touches[0].clientX - touches[1].clientX;
-  const dy = touches[0].clientY - touches[1].clientY;
-  return Math.hypot(dx, dy);
-};
-
-const handleTouchStart = (e) => {
-  if (e.touches.length === 2) {
-    e.preventDefault();
-    initialPinchDistance = getPinchDistance(e.touches);
-    startZoomLevel = zoomLevel.value;
-  }
-};
-
-const handleTouchMove = (e) => {
-  if (e.touches.length === 2 && initialPinchDistance !== null) {
-    e.preventDefault();
-    const currentDistance = getPinchDistance(e.touches);
-    const zoomFactor = currentDistance / initialPinchDistance;
-    zoomLevel.value = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, startZoomLevel * zoomFactor));
-  }
-};
-
-const handleTouchEnd = () => {
-  initialPinchDistance = null;
-};
-
-// --- WATCHERS ---
 watch(() => props.pdfArrayBuffer, async (newBuffer) => {
   if (newBuffer) {
-    zoomLevel.value = 1.5; // Reset zoom for new file
     await nextTick(); 
     renderPdf(newBuffer);
   }
 }, { immediate: true });
 
-// NEW: This watcher re-renders the PDF when zoom level changes.
-watch(zoomLevel, () => {
-  if (props.pdfArrayBuffer) {
-    renderPdf(props.pdfArrayBuffer);
-  }
-});
-
-watch(() => props.activePanel, (newVal, oldVal) => {
-  // Correctly show/hide '+' buttons
-  if ((newVal === 'organize' || oldVal === 'organize') && props.pdfArrayBuffer) {
-    renderPdf(props.pdfArrayBuffer);
-  }
-  
-  // Correctly update cursors and pointer events
+watch(() => props.activePanel, (newVal) => {
   overlayCanvases.value.forEach(c => {
     const isInteractive = ['draw', 'edit', 'place-signature'].includes(newVal);
     c.style.pointerEvents = isInteractive ? 'auto' : 'none';
+    
     let cursorStyle = 'default';
     if (newVal === 'draw') cursorStyle = 'crosshair';
     else if (newVal === 'edit') cursorStyle = 'text';
     else if (newVal === 'place-signature') cursorStyle = 'copy';
     c.style.cursor = cursorStyle;
+
+    if (isInteractive) {
+        c.removeEventListener('mousedown', startDrawing);
+        c.addEventListener('mousedown', startDrawing);
+        c.removeEventListener('mousemove', draw);
+        c.addEventListener('mousemove', draw);
+        c.removeEventListener('mouseup', stopDrawing);
+        c.addEventListener('mouseup', stopDrawing);
+        c.removeEventListener('mouseleave', stopDrawing);
+        c.addEventListener('mouseleave', stopDrawing);
+        c.removeEventListener('touchstart', startDrawing);
+        c.addEventListener('touchstart', startDrawing, { passive: false });
+        c.removeEventListener('touchmove', draw);
+        c.addEventListener('touchmove', draw, { passive: false });
+        c.removeEventListener('touchend', stopDrawing);
+        c.addEventListener('touchend', stopDrawing);
+    }
   });
 });
 
-// MODIFIED: Manage all listeners for the render container here.
+// FIX: Attach the click listener to the render container, not the wrapper.
 watch(pdfRenderContainer, (newEl, oldEl) => {
-  if (oldEl) {
-    oldEl.removeEventListener('click', handleViewerClick);
-    oldEl.removeEventListener('wheel', handleWheel);
-    oldEl.removeEventListener('touchstart', handleTouchStart);
-    oldEl.removeEventListener('touchmove', handleTouchMove);
-    oldEl.removeEventListener('touchend', handleTouchEnd);
-  }
-  if (newEl) {
-    newEl.addEventListener('click', handleViewerClick);
-    // Add all our listeners for zoom and interaction
-    newEl.addEventListener('wheel', handleWheel, { passive: false });
-    newEl.addEventListener('touchstart', handleTouchStart, { passive: false });
-    newEl.addEventListener('touchmove', handleTouchMove, { passive: false });
-    newEl.addEventListener('touchend', handleTouchEnd);
-  }
+  if (oldEl) oldEl.removeEventListener('click', handleViewerClick);
+  if (newEl) newEl.addEventListener('click', handleViewerClick);
 }, { immediate: true });
 
 defineExpose({
@@ -343,5 +304,3 @@ defineExpose({
   pdfDoc: () => pdfDoc,
 });
 </script>
-
-
